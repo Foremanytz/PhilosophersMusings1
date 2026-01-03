@@ -1,21 +1,25 @@
 
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { PHILOSOPHERS } from './constants';
-import { Philosopher, DialogueMessage } from './types';
+import { Philosopher } from './types';
 import PhilosopherCard from './components/PhilosopherCard';
 import { generateDialogue } from './services/geminiService';
 
 const App: React.FC = () => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [topic, setTopic] = useState('');
+  const [rounds, setRounds] = useState(4);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isContinuing, setIsContinuing] = useState(false);
   const [dialogue, setDialogue] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
   
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (dialogue.length > 0) {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
   }, [dialogue]);
 
   const toggleSelection = (id: string) => {
@@ -37,13 +41,33 @@ const App: React.FC = () => {
     const p2 = PHILOSOPHERS.find(p => p.id === selectedIds[1])!;
 
     try {
-      const result = await generateDialogue(p1, p2, topic);
+      const result = await generateDialogue(p1, p2, topic, rounds);
       if (result.length === 0) throw new Error("對話生成失敗，請再試一次。");
       setDialogue(result);
     } catch (err: any) {
       setError(err.message || '發生未知錯誤');
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const handleContinue = async () => {
+    if (selectedIds.length !== 2 || isContinuing) return;
+
+    setIsContinuing(true);
+    setError(null);
+
+    const p1 = PHILOSOPHERS.find(p => p.id === selectedIds[0])!;
+    const p2 = PHILOSOPHERS.find(p => p.id === selectedIds[1])!;
+
+    try {
+      const result = await generateDialogue(p1, p2, topic, 2, dialogue);
+      if (result.length === 0) throw new Error("無法延續對話，請再試一次。");
+      setDialogue(prev => [...prev, ...result]);
+    } catch (err: any) {
+      setError(err.message || '延續對話時發生錯誤');
+    } finally {
+      setIsContinuing(false);
     }
   };
 
@@ -90,36 +114,45 @@ const App: React.FC = () => {
         <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
           <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2 mb-6">
             <span className="bg-amber-100 text-amber-800 w-8 h-8 rounded-full flex items-center justify-center text-sm">2</span>
-            設定討論主題
+            設定討論細節
           </h2>
-          <div className="flex gap-4">
-            <input 
-              type="text" 
-              placeholder="例如：全民教育、生命的意義、AI 的道德..."
-              value={topic}
-              onChange={(e) => setTopic(e.target.value)}
-              className="flex-1 px-6 py-4 rounded-2xl border-2 border-gray-200 focus:border-amber-500 focus:outline-none transition-all text-lg"
-            />
-            <button
-              onClick={handleGenerate}
-              disabled={selectedIds.length < 2 || !topic || isGenerating}
-              className={`
-                px-8 py-4 rounded-2xl font-bold text-white shadow-lg transition-all
-                ${selectedIds.length < 2 || !topic || isGenerating
-                  ? 'bg-gray-300 cursor-not-allowed shadow-none'
-                  : 'bg-amber-700 hover:bg-amber-800 hover:-translate-y-0.5 active:translate-y-0'}
-              `}
-            >
-              {isGenerating ? (
-                <div className="flex items-center gap-2">
-                  <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  思辨中...
-                </div>
-              ) : '開始辯論'}
-            </button>
+          <div className="space-y-6">
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-semibold text-gray-500 flex justify-between">
+                <span>預設交談次數 (每方)</span>
+                <span className="text-amber-700">{rounds} 次</span>
+              </label>
+              <input 
+                type="range" 
+                min="3" 
+                max="10" 
+                step="1" 
+                value={rounds} 
+                onChange={(e) => setRounds(parseInt(e.target.value))}
+                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-amber-700"
+              />
+            </div>
+            <div className="flex gap-4">
+              <input 
+                type="text" 
+                placeholder="例如：全民教育、生命的意義、AI 的道德..."
+                value={topic}
+                onChange={(e) => setTopic(e.target.value)}
+                className="flex-1 px-6 py-4 rounded-2xl border-2 border-gray-200 focus:border-amber-500 focus:outline-none transition-all text-lg"
+              />
+              <button
+                onClick={handleGenerate}
+                disabled={selectedIds.length < 2 || !topic || isGenerating}
+                className={`
+                  px-8 py-4 rounded-2xl font-bold text-white shadow-lg transition-all
+                  ${selectedIds.length < 2 || !topic || isGenerating
+                    ? 'bg-gray-300 cursor-not-allowed shadow-none'
+                    : 'bg-amber-700 hover:bg-amber-800 hover:-translate-y-0.5 active:translate-y-0'}
+                `}
+              >
+                {isGenerating ? '思辨中...' : '開始辯論'}
+              </button>
+            </div>
           </div>
         </div>
       </section>
@@ -154,7 +187,7 @@ const App: React.FC = () => {
                 <div className="flex-shrink-0">
                   <img 
                     src={msg.role === 'p1' ? p1?.avatar : p2?.avatar} 
-                    className="w-12 h-12 rounded-full border-2 border-white shadow-sm"
+                    className="w-12 h-12 rounded-full border-2 border-white shadow-sm object-cover"
                   />
                 </div>
                 <div className={`max-w-[80%] space-y-1 ${msg.role === 'p2' ? 'text-right' : ''}`}>
@@ -170,6 +203,26 @@ const App: React.FC = () => {
                 </div>
               </div>
             ))}
+            
+            <div className="pt-8 flex justify-center">
+              <button
+                onClick={handleContinue}
+                disabled={isContinuing}
+                className="group flex items-center gap-3 px-10 py-4 bg-white border-2 border-amber-600 text-amber-700 rounded-full font-bold hover:bg-amber-600 hover:text-white transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isContinuing ? (
+                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 group-hover:rotate-12 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                )}
+                {isContinuing ? '正在深索見解...' : '繼續深入探討'}
+              </button>
+            </div>
             <div ref={bottomRef} />
           </div>
         </section>
@@ -177,7 +230,7 @@ const App: React.FC = () => {
 
       {/* Loading Placeholder */}
       {isGenerating && (
-        <div className="space-y-8 animate-pulse">
+        <div className="space-y-8 animate-pulse mt-10">
            <div className="h-24 bg-gray-200 rounded-3xl w-2/3"></div>
            <div className="h-32 bg-gray-100 rounded-3xl w-3/4 ml-auto"></div>
            <div className="h-24 bg-gray-200 rounded-3xl w-1/2"></div>
