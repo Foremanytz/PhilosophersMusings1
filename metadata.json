@@ -1,0 +1,5 @@
+{
+  "name": "Philosopher's Dialogue",
+  "description": "An interactive platform where users can select two historical thinkers to engage in a deep philosophical debate over a chosen topic.",
+  "requestFramePermissions": []
+}
