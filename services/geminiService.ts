@@ -21,14 +21,14 @@ export const generateDialogue = async (
     討論主題：${topic}
 
     對話風格：
-    1. 必須嚴格遵守每位哲學家的思想體系與口吻。
-    2. ${isContinuing ? '這是對話的延伸，請接著之前的內容繼續深入探討。' : `對話應包含約 ${rounds} 個回合。`}
-    3. 語氣應文雅、深刻，反映出其時代背景。
+    1. 必須嚴格遵守每位哲學家的思想體系、邏輯邏輯與特有的說話口吻。
+    2. ${isContinuing ? '【重要】這是一段既有對話的延續。請仔細閱讀先前的紀錄，針對對方的最後一個觀點進行反駁、深化或轉折，不要重複已經說過的內容。' : `對話應包含約 ${rounds} 個回合。`}
+    3. 語氣應文雅、深刻，反映出其時代與文化背景。
     4. 請以 JSON 格式返回。
   `;
 
   const prompt = isContinuing 
-    ? `這是之前的對話紀錄：${JSON.stringify(history)}。請讓 ${p1.name} 與 ${p2.name} 繼續針對「${topic}」進行下一輪深入的辯論。`
+    ? `【對話歷史】：${JSON.stringify(history.slice(-4))}。請讓 ${p1.name} 與 ${p2.name} 針對「${topic}」繼續這場辯論，每人各再發表一段深刻的見解。`
     : `請開始 ${p1.name} 與 ${p2.name} 關於「${topic}」的對話。`;
 
   const response = await ai.models.generateContent({
